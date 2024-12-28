@@ -1,0 +1,74 @@
+# Inititate RPC call
+
+>> call <command> <args>
+
+<< nope # no such command
+
+<< data <interim>
+
+<< done <result>
+<< fail <error>
+
+# Async RPC call
+
+>> A001 call ...
+
+<< A001 ...
+
+# RPC call and discard result
+
+>> cast <command> <args>
+
+# Protocol or unhandleable runtime error (followed by close)
+
+>> barf <fatal>
+
+<< barf <fatal>
+
+# Async-or-barf: given an id, will done/fail/nope, if not, works or barfs
+
+# Pure subscription to server side data (async-or-barf)
+
+>> listen <channel>
+>> unlisten <channel>
+
+# Subscription data delivery
+
+<< notify <channel> <payload>
+
+# Interception of events (async-or-barf)
+
+>> trap <event>
+>> untrap <event>
+
+# Handle trapped event
+
+<< E001 wrap <event> <args>
+
+>> E001 done <result>
+>> E001 fail <error>
+>> E001 drop <why>
+
+# Undecided thoughts about informing the server of ways to treat the client
+
+# Announce general participation in server protocol to server (async-or-barf)
+
+>> asyncable
+>> unasyncable
+
+# Announce callables to server (async-or-barf) (can also be cast-ed)
+
+>> callable <commands>
+>> uncallable <commands>
+
+# Announce listenables to server (async-or-barf)
+
+>> listenable <channels>
+>> unlistenable <channels>
+
+# Announce trappables to server (async-or-barf)
+
+>> trappable <events>
+<< untrappable <events>
+
+# Request server provides information (must be 
