@@ -3,6 +3,7 @@ import { Nexus } from './core.js'
 const clientSent = []
 
 const clientNexus = new Nexus({
+  __proto__: Nexus.prototype,
   prefix: 'client:',
   sendMessage (...msg) {
     console.log(`${this.prefix}SEND`, JSON.stringify(msg))
@@ -10,7 +11,7 @@ const clientNexus = new Nexus({
   },
   receiveMessage (...msg) {
     console.log(`${this.prefix}RECV`, JSON.stringify(msg))
-    Nexus.prototype.receiveMessage.apply(this, msg)
+    super.receiveMessage.apply(this, msg)
   }
 })
 
