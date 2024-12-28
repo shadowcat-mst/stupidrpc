@@ -220,9 +220,9 @@ export class Nexus {
     Object.assign(this, args)
   }
 
-  streamCall () {
+  streamCall (call, args) {
     const receiver = this.sendCall_(
-      args => new SimpleResultReceiver(args),
+      args => new StreamResultReceiver(args),
       call, args,
     )
     return new StreamIterator({ receiver })
