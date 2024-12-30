@@ -14,7 +14,7 @@ await promise
 
 console.log('Return', await nexus.simpleCall('basic', 'foo'))
 
-const stream = nexus.streamCall('generate', [ 1, 2, 3 ])
+const stream = nexus.streamCall('generate', 1, 2, 3)
 
 for await (const value of stream) {
   console.log('Value', value)

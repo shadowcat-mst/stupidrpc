@@ -236,27 +236,23 @@ export class Nexus {
     Object.assign(this, args)
   }
 
-  streamCall (call, args) {
-    const receiver = this.sendCall_(
-      args => new StreamResultReceiver(args),
-      call, args,
-    )
+  streamCall (...call) {
+    const make = args => new StreamResultReceiver(args)
+    const receiver = this.sendCall_(make, call)
     return new StreamIterator({ receiver })
   }
 
-  simpleCall (call, args) {
+  simpleCall (...call) {
     const { promise, ...completions } = Promise.withResolvers()
-    const receiver = this.sendCall_(
-      args => new SimpleResultReceiver({ completions, ...args }),
-      call, args,
-    )
+    const make = args => new SimpleResultReceiver({ completions, ...args })
+    const receiver = this.sendCall_(make, call)
     promise.stop = () => receiver.stop()
     return promise
   }
 
-  sendCall_ (makeResultReceiver, call, args) {
+  sendCall_ (makeResultReceiver, call) {
     const callId = this.nextid()
-    this.sendMessage(CALL, callId, call, args)
+    this.sendMessage(CALL, callId, ...call)
     const { inflight } = this
     const receiverArgs = {
       onComplete () { delete inflight[callId] },

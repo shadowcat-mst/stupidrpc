@@ -7,7 +7,7 @@ Bun.serve({
     if (path == '/ws') {
       const nexus = new Nexus({
         prefix: 'server:',
-        startCall (name, args) {
+        startCall (name, ...args) {
           if (name === 'generate') {
             return (async function* () {
               for (const arg of args) {
