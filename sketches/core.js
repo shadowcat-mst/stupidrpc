@@ -285,7 +285,7 @@ export class Nexus {
     }
     const invalid = () => { throw "startCall returned invalid type" }
     const resultSenderType = (
-      state instanceof Promise
+      state['then']
         ? SimpleResultSender
         : state[Symbol.asyncIterator]
           ? StreamResultSender
