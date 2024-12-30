@@ -89,10 +89,7 @@ class StreamResultReceiver {
       return this.completePromise_(Promise, this.resultsBuffer.shift())
     }
     if (this.isComplete) return Promise.resolve(COMPLETE_RESULT)
-    let completions
-    const promise = new Promise((resolve, reject) => {
-      completions = { resolve, reject }
-    })
+    const { promise, ...completions } = Promise.withResolvers()
     this.pendingBuffer.push(completions)
     return promise
   }
@@ -244,10 +241,7 @@ export class Nexus {
   }
 
   simpleCall (call, args) {
-    let completions
-    const promise = new Promise((resolve, reject) => {
-      completions = { resolve, reject }
-    })
+    const { promise, ...completions } = Promise.withResolvers()
     const receiver = this.sendCall_(
       args => new SimpleResultReceiver({ completions, ...args }),
       call, args,
