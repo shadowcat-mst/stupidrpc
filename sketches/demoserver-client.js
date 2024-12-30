@@ -26,4 +26,6 @@ catch (e) { console.log('Error', e) }
 try { await nexus.call('expect barf') }
 catch (e) { console.log('Error', e) }
 
+console.log('Return', await nexus.call('generate', 'bar'))
+
 ws.close()

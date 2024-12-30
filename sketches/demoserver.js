@@ -13,6 +13,7 @@ Bun.serve({
               for (const arg of args) {
                 yield arg
               }
+              return args[0]
             })()
           }
           if (name === 'basic') {
