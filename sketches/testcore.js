@@ -1,18 +1,27 @@
 import { Nexus } from './core.js'
 
-const clientSent = []
+function loggedNexus (nexusArgs) {
+  const sendCallback = nexusArgs.sendCallback
+  delete nexusArgs.sendCallBack
+  return new Nexus({
+    __proto__: Nexus.prototype,
+    ...nexusArgs,
+    sendMessage (...msg) {
+      console.log(`${this.prefix}SEND`, JSON.stringify(msg))
+      sendCallback(msg)
+    },
+    receiveMessage (...msg) {
+      console.log(`${this.prefix}RECV`, JSON.stringify(msg))
+      super.receiveMessage(...msg)
+    }
+  })
+}
 
-const clientNexus = new Nexus({
-  __proto__: Nexus.prototype,
-  prefix: 'client:',
-  sendMessage (...msg) {
-    console.log(`${this.prefix}SEND`, JSON.stringify(msg))
-    clientSent.push(msg)
-  },
-  receiveMessage (...msg) {
-    console.log(`${this.prefix}RECV`, JSON.stringify(msg))
-    super.receiveMessage.apply(this, msg)
-  }
+let clientSend = () => {}
+
+const clientNexus = loggedNexus({
+   prefix: 'client:',
+   sendCallback (msg) { clientSend(msg) },
 })
 
 const p0 = clientNexus.simpleCall('foo', [])
@@ -48,3 +57,37 @@ console.log('Resolve', p3r)
 const p4r = await g0.next()
 
 console.log('Resolve', p4r)
+
+const doneHandlers = {}, callHandlers = {
+  async foo () { return 'bar' },
+  async *fooGen () {
+    yield 'meep1'
+    yield 'meep2'
+    return 'meep3'
+  },
+}
+
+let serverSend = ([ type, callId, value ]) => {
+  if (type === 'DONE' || type === 'FAIL') {
+    const cb = doneHandlers[callId]
+    if (cb) cb([ type, value ])
+  }
+}
+
+const serverNexus = loggedNexus({
+  prefix: 'server:',
+  startCall (methodName) { return callHandlers[methodName]() },
+  sendCallback(msg) { serverSend(msg) },
+})
+
+const p5 = new Promise(resolve => doneHandlers['inject:0001'] = resolve)
+
+serverNexus.receiveMessage('CALL', 'inject:0001', 'foo')
+
+console.log('Resolve', await p5)
+
+const p6 = new Promise(resolve => doneHandlers['inject:0002'] = resolve)
+
+serverNexus.receiveMessage('CALL', 'inject:0001', 'fooGen')
+
+console.log('Resolve', await p5)

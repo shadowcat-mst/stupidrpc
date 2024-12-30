@@ -13,7 +13,12 @@
 const { CALL, NEXT, DONE, FAIL, STOP }
   = new Proxy({}, { get (_, prop) { return prop } })
 
-const AsyncGenerator = (async function* () {})().constructor
+class CallStopped extends Error {
+
+  constructor () {
+    super("StupidRPC: STOP")
+  }
+}
 
 class SimpleResultReceiver {
 
@@ -28,78 +33,90 @@ class SimpleResultReceiver {
     this.onComplete()
   }
 
+  stop () {
+    this.onStop()
+    this.complete_('reject', new CallStopped())
+  }
+
   NEXT (data) { }
   DONE (data) { this.complete_('resolve', data) }
   FAIL (data) { this.complete_('reject', data) }
 }
 
+const COMPLETE_RESULT = { value: undefined, done: true }
+
 class StreamResultReceiver {
 
-  elementBuffer = []
-  promiseBuffer = []
+  resultsBuffer = []
+  pendingBuffer = []
   isComplete = false
 
   constructor (args) { Object.assign(this, args) }
 
+  completePromise_ (promise, result) {
+    if (result.error) {
+      return promise.reject(result.error)
+    }
+    return promise.resolve(result)
+  }
+
+  push_ (result) {
+    if (this.isComplete) return
+    if (this.pendingBuffer.length) {
+      this.pendingBuffer.shift().resolve(result)
+    } else {
+      this.resultsBuffer.push(result)
+    }
+  }
+
+  complete_ (result) {
+    if (this.isComplete) return
+    this.isComplete = true
+    if (result) {
+      if (this.pendingBuffer.length) {
+        const [ next, ...rest ] = this.pendingBuffer.splice(0)
+        this.completePromise_(next, result)
+        rest.forEach(v => v.resolve(COMPLETE_RESULT))
+      } else {
+        this.resultsBuffer.push(result)
+      }
+    }
+    this.onComplete()
+  }
+
   nextPromise () {
-    if (this.elementBuffer.length) {
-      const el = this.elementBuffer.shift()
-      if (el.error) return Promise.reject(el.error)
-      return Promise.resolve(el)
+    if (this.resultsBuffer.length) {
+      return this.completePromise_(Promise, this.resultsBuffer.shift())
     }
-    if (this.isComplete) {
-      return Promise.resolve({ value: undefined, done: true })
-    }
+    if (this.isComplete) return Promise.resolve(COMPLETE_RESULT)
     let completions
     const promise = new Promise((resolve, reject) => {
       completions = { resolve, reject }
     })
-    this.promiseBuffer.push(completions)
+    this.pendingBuffer.push(completions)
     return promise
   }
 
-  complete_ () {
-    if (this.isComplete) return
-    this.isComplete = true
-    this.onComplete()
-  }
-
-  stop () {
+  stop (result) {
     if (this.isComplete) return
     this.onStop()
-    this.complete_()
+    this.complete_(result)
   }
 
   NEXT (value) {
-    this.next_({ value, done: false })
+    this.push_({ value, done: false })
   }
 
   DONE (value) {
-    this.next_({ value, done: true })
-    this.complete_()
-  }
-
-  next_ (next) {
-    if (this.isComplete) return
-    if (this.promiseBuffer.length) {
-      this.promiseBuffer.shift().resolve(next)
-    } else {
-      this.elementBuffer.push(next)
-    }
+    this.complete_({ value, done: true })
   }
 
   FAIL (error) {
-    if (this.isComplete) return
-    if (this.promiseBuffer.length) {
-      this.promiseBuffer.shift().reject(error)
-    } else {
-      this.elementBuffer.push({ error })
-    }
-    this.complete_()
+    this.complete_({ error })
   }
 }
 
-class StreamIterator {
+class StreamGenerator {
 
   constructor (args) { Object.assign(this, args) }
 
@@ -107,23 +124,21 @@ class StreamIterator {
 
   next () { return this.receiver.nextPromise() }
 
-  stop () { this.receiver.stop() }
+  stop () {
+    this.receiver.stop({ error: new CallStopped() })
+  }
+
+  // I think this is sensible behaviour for these two
+  // but testing against AsyncGenerator instances later may be wise
 
   return (value) {
-    this.receiver.stop()
+    this.receiver.stop({ value, done: true })
     return Promise.resolve({ value, done: true })
   }
 
   throw (error) {
-    this.receiver.stop()
+    this.receiver.stop({ error })
     return Promise.reject(error)
-  }
-}
-
-class CallStopped extends Error {
-
-  constructor () {
-    super("StupidRPC: STOP")
   }
 }
 
@@ -166,16 +181,16 @@ class StreamResultSender {
 
   async doStream () {
     const { state, sendMessage } = this
-    let next, nextResult
     try {
       // can't use a for loop here because we want the { done: true } value
-      while (next = state.next()) {
-        nextResult = await next
+      let next
+      while (true) {
+        next = await state.next()
         if (this.isComplete) return
-        if (nextResult.done) break
-        sendMessage(NEXT, nextResult.value)
+        if (next.done) break
+        sendMessage(NEXT, next.value)
       }
-      this.complete_(CALL, nextResult.value)
+      this.complete_(CALL, next.value)
     } catch (error) {
       this.complete_(FAIL, error)
     }
@@ -225,7 +240,7 @@ export class Nexus {
       args => new StreamResultReceiver(args),
       call, args,
     )
-    return new StreamIterator({ receiver })
+    return new StreamGenerator({ receiver })
   }
 
   simpleCall (call, args) {
@@ -233,10 +248,11 @@ export class Nexus {
     const promise = new Promise((resolve, reject) => {
       completions = { resolve, reject }
     })
-    this.sendCall_(
+    const receiver = this.sendCall_(
       args => new SimpleResultReceiver({ completions, ...args }),
       call, args,
     )
+    promise.stop = () => receiver.stop()
     return promise
   }
 
@@ -265,7 +281,7 @@ export class Nexus {
 
   receiveCall_ (callId, payload) {
     if (!this.startCall) {
-      this.sendMessage(FAIL, callId, "CALL unsupported")
+      this.sendMessage(FAIL, callId, "CALL unsupported by this endpoint")
       return
     }
     let state
@@ -275,11 +291,11 @@ export class Nexus {
       this.sendMessage(FAIL, callId, error)
       return
     }
-    const invalid = () => { throw "onReceiveCall returned invalid type" }
+    const invalid = () => { throw "startCall returned invalid type" }
     const resultSenderType = (
       state instanceof Promise
         ? SimpleResultSender
-        : state instanceof AsyncGenerator
+        : state[Symbol.asyncIterator]
           ? StreamResultSender
           : invalid()
     )
@@ -291,7 +307,7 @@ export class Nexus {
       state, sendMessage,
       onComplete () { delete inflight[callId] },
     }
-    inflight[callId] = resultSenderType(senderArgs)
+    inflight[callId] = new resultSenderType(senderArgs)
   }
 }
 
