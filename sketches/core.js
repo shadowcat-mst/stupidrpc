@@ -218,12 +218,8 @@ export class Nexus {
 
   idSequence = 0
 
-  nextid () {
+  nextid_ () {
     this.idSequence++
-    return this.currid()
-  }
-
-  currid () {
     let seqstr = this.idSequence.toString()
     if (seqstr.length < 4) {
       const zeroes = new Array(4 - seqstr.length).keys().map(v => '0')
@@ -236,13 +232,7 @@ export class Nexus {
     Object.assign(this, args)
   }
 
-  streamCall (...call) {
-    const make = args => new StreamResultReceiver(args)
-    const receiver = this.sendCall_(make, call)
-    return new StreamIterator({ receiver })
-  }
-
-  simpleCall (...call) {
+  call (...call) {
     const { promise, ...completions } = Promise.withResolvers()
     const make = args => new SimpleResultReceiver({ completions, ...args })
     const receiver = this.sendCall_(make, call)
@@ -250,8 +240,14 @@ export class Nexus {
     return promise
   }
 
+  iter (...call) {
+    const make = args => new StreamResultReceiver(args)
+    const receiver = this.sendCall_(make, call)
+    return new StreamIterator({ receiver })
+  }
+
   sendCall_ (makeResultReceiver, call) {
-    const callId = this.nextid()
+    const callId = this.nextid_()
     this.sendMessage(CALL, callId, ...call)
     const { inflight } = this
     const receiverArgs = {

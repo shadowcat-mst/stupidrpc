@@ -24,7 +24,7 @@ const clientNexus = loggedNexus({
    sendCallback (msg) { clientSend(msg) },
 })
 
-const p0 = clientNexus.simpleCall('foo', [])
+const p0 = clientNexus.call('foo', [])
 
 clientNexus.receiveMessage('DONE', 'client:0001', 'bar')
 
@@ -32,7 +32,7 @@ const p0r = await p0
 
 console.log('Resolve', p0r)
 
-const g0 = clientNexus.streamCall('genFoo', [])
+const g0 = clientNexus.iter('genFoo', [])
 
 clientNexus.receiveMessage('NEXT', 'client:0002', 'meep1')
 

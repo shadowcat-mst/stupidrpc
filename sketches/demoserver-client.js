@@ -12,18 +12,18 @@ ws.addEventListener('open', resolve)
 
 await promise
 
-console.log('Return', await nexus.simpleCall('basic', 'foo'))
+console.log('Return', await nexus.call('basic', 'foo'))
 
-const stream = nexus.streamCall('generate', 1, 2, 3)
+const stream = nexus.iter('generate', 1, 2, 3)
 
 for await (const value of stream) {
   console.log('Value', value)
 }
 
-try { await nexus.simpleCall('fail') }
+try { await nexus.call('fail') }
 catch (e) { console.log('Error', e) }
 
-try { await nexus.simpleCall('expect barf') }
+try { await nexus.call('expect barf') }
 catch (e) { console.log('Error', e) }
 
 ws.close()
