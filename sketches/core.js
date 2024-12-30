@@ -113,13 +113,17 @@ class StreamResultReceiver {
   }
 }
 
-class StreamGenerator {
+class StreamIterator {
 
   constructor (args) { Object.assign(this, args) }
 
-  [Symbol.AsyncIterator] () { return this }
+  [Symbol.asyncIterator] () { return this }
 
   next () { return this.receiver.nextPromise() }
+
+  // stop() here mirrors SimpleResultReceiver().stop() since that has to
+  // do *something* to complete its Promise - but if you want a silent end
+  // of streaming you can call .return() so I think that makes sense
 
   stop () {
     this.receiver.stop({ error: new CallStopped() })
@@ -177,7 +181,7 @@ class StreamResultSender {
   }
 
   async doStream () {
-    const { state, sendMessage } = this
+    const { state } = this
     try {
       // can't use a for loop here because we want the { done: true } value
       let next
@@ -185,9 +189,9 @@ class StreamResultSender {
         next = await state.next()
         if (this.isComplete) return
         if (next.done) break
-        sendMessage(NEXT, next.value)
+        this.sendMessage(NEXT, next.value)
       }
-      this.complete_(CALL, next.value)
+      this.complete_(DONE, next.value)
     } catch (error) {
       this.complete_(FAIL, error)
     }
@@ -237,7 +241,7 @@ export class Nexus {
       args => new StreamResultReceiver(args),
       call, args,
     )
-    return new StreamGenerator({ receiver })
+    return new StreamIterator({ receiver })
   }
 
   simpleCall (call, args) {
@@ -264,9 +268,11 @@ export class Nexus {
   receiveMessage (type, callId, ...payload) {
     const { inflight } = this
     if (type === CALL) {
-      inflight[callId] = this.receiveCall_(callId, payload)
+      this.receiveCall_(callId, payload)
     } else {
-      if (!inflight[callId][type]) {
+      const inflightEntry = inflight[callId]
+      if (!inflightEntry) return
+      if (!inflightEntry[type]) {
         throw `No handler for ${type} for ${callid}`
       }
       inflight[callId][type](...payload)
