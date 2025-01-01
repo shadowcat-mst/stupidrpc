@@ -1,16 +1,9 @@
-import { bindNexusToWebSocket, Nexus } from '../src/nexus.js'
+import { nexusFromWebSocket } from '../src/websocket.js'
 
-const nexus = new Nexus({ prefix: 'client:' })
-
-const ws = new WebSocket('ws://localhost:4173/ws')
-
-bindNexusToWebSocket(nexus, ws)
-
-const { promise, resolve } = Promise.withResolvers()
-
-ws.addEventListener('open', resolve)
-
-await promise
+const nexus = await nexusFromWebSocket(
+  'ws://localhost:4173/ws',
+  { prefix: 'client:' }
+)
 
 console.log('Return', await nexus.call('basic', 'foo'))
 
@@ -28,4 +21,4 @@ catch (e) { console.log('Error', e) }
 
 console.log('Return', await nexus.call('generate', 'bar'))
 
-ws.close()
+nexus.ws.close()

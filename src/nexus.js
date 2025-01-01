@@ -302,11 +302,3 @@ export class Nexus {
     inflight[callId] = new resultSenderType(senderArgs)
   }
 }
-
-export function bindNexusToWebSocket (nexus, ws) {
-  nexus.sendMessage = (...msg) => ws.send(JSON.stringify(msg))
-  ws.addEventListener(
-    'message', ({ data }) => nexus.receiveMessage(...JSON.parse(data))
-  )
-  return nexus
-}
