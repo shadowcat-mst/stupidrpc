@@ -9,6 +9,8 @@ const nexus = await nexusFromWebSocket(
 
 console.log('Return', await nexus.call('basic', 'foo'))
 
+console.log('Return', await nexus.call([ 'nested', 1, 'basic' ], 'foo'))
+
 const stream = nexus.iter('generate', 1, 2, 3)
 
 for await (const value of stream) {
