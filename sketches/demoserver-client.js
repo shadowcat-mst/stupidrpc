@@ -1,7 +1,9 @@
 import { nexusFromWebSocket } from '../src/websocket.js'
 
+let ws
+
 const nexus = await nexusFromWebSocket(
-  'ws://localhost:4173/ws',
+  ws = new WebSocket('ws://localhost:4173/ws'),
   { prefix: 'client:' }
 )
 
@@ -21,4 +23,4 @@ catch (e) { console.log('Error', e) }
 
 console.log('Return', await nexus.call('generate', 'bar'))
 
-nexus.ws.close()
+ws.close()

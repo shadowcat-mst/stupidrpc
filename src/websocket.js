@@ -11,6 +11,10 @@ function bindNexusToWebSocket (nexus, ws) {
 
 function wsConnect (ws) {
   if (typeof ws === 'string') ws = new WebSocket(ws)
+  if (ws.readyState === WebSocket.OPEN) return Promise.resolve(ws)
+  if (ws.readyState !== WebSocket.CONNECTING) {
+    return Promise.reject("WebSocket neither OPEN nor CONNECTING")
+  }
   const { promise, resolve, reject } = Promise.withResolvers()
   function updateEvents (ws, updateType) {
     ws[`${updateType}EventListener`]('open', onOpen)
