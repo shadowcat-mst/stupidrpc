@@ -280,25 +280,22 @@ export class Nexus {
   }
 
   receiveCall_ (callId, payload) {
-    if (!this.startCall) {
-      this.sendMessage(FAIL, callId, "CALL unsupported by this endpoint")
-      return
-    }
-    let state
+    function invalid () { throw "startCall returned invalid type" }
+    let state, resultSenderType
     try {
+      if (!this.startCall) throw "CALL unsupported by this endpoint"
       state = this.startCall(...payload)
+      resultSenderType = (
+        state['then']
+          ? SimpleResultSender
+          : state[Symbol.asyncIterator]
+            ? StreamResultSender
+            : invalid()
+      )
     } catch (error) {
       this.sendMessage(FAIL, callId, error)
       return
     }
-    const invalid = () => { throw "startCall returned invalid type" }
-    const resultSenderType = (
-      state['then']
-        ? SimpleResultSender
-        : state[Symbol.asyncIterator]
-          ? StreamResultSender
-          : invalid()
-    )
     const sendMessage = (type, value) => {
       this.sendMessage(type, callId, value)
     }
