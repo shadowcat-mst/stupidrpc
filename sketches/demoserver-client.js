@@ -1,4 +1,4 @@
-import { bindNexusToWebSocket, Nexus } from './core.js'
+import { bindNexusToWebSocket, Nexus } from '../src/nexus.js'
 
 const nexus = new Nexus({ prefix: 'client:' })
 

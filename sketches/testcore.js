@@ -1,4 +1,4 @@
-import { Nexus } from './core.js'
+import { Nexus } from '../src/nexus.js'
 
 function loggedNexus (nexusArgs) {
   const sendCallback = nexusArgs.sendCallback
@@ -88,6 +88,6 @@ console.log('Resolve', await p5)
 
 const p6 = new Promise(resolve => doneHandlers['inject:0002'] = resolve)
 
-serverNexus.receiveMessage('CALL', 'inject:0001', 'fooGen')
+serverNexus.receiveMessage('CALL', 'inject:0002', 'fooGen')
 
-console.log('Resolve', await p5)
+console.log('Resolve', await p6)

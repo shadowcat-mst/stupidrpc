@@ -1,4 +1,4 @@
-import { Nexus } from './core.js'
+import { Nexus } from '../src/nexus.js'
 
 Bun.serve({
   port: 4173,
