@@ -15,6 +15,8 @@ for await (const value of stream) {
   console.log('Value', value)
 }
 
+console.log('Return', await stream.result)
+
 try { await nexus.call('fail') }
 catch (e) { console.log('Error', e) }
 

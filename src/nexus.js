@@ -51,6 +51,9 @@ class StreamResultReceiver {
   pendingBuffer = []
   isComplete = false
 
+  result_ = Promise.withResolvers()
+  result = this.result_.promise
+
   constructor (args) { Object.assign(this, args) }
 
   completePromise_ (promise, result) {
@@ -72,14 +75,17 @@ class StreamResultReceiver {
   complete_ (result) {
     if (this.isComplete) return
     this.isComplete = true
-    if (result) {
-      if (this.pendingBuffer.length) {
-        const [ next, ...rest ] = this.pendingBuffer.splice(0)
-        this.completePromise_(next, result)
-        rest.forEach(v => v.resolve(COMPLETE_RESULT))
-      } else {
-        this.resultsBuffer.push(result)
-      }
+    if (result.error) {
+      this.result_.reject(result.error)
+    } else {
+      this.result_.resolve(result.value)
+    }
+    if (this.pendingBuffer.length) {
+      const [ next, ...rest ] = this.pendingBuffer.splice(0)
+      this.completePromise_(next, result)
+      rest.forEach(v => v.resolve(COMPLETE_RESULT))
+    } else {
+      this.resultsBuffer.push(result)
     }
     this.onComplete()
   }
@@ -116,6 +122,8 @@ class StreamResultReceiver {
 class StreamIterator {
 
   constructor (args) { Object.assign(this, args) }
+
+  get result () { return this.receiver.result }
 
   [Symbol.asyncIterator] () { return this }
 
