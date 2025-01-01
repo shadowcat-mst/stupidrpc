@@ -1,5 +1,18 @@
 import { Nexus } from '../src/nexus.js'
 
+const callHandlers = {
+  async basic (...args) {
+    return Promise.resolve(args)
+  },
+  async *generate (...args) {
+    for (const arg of args) {
+      yield arg
+    }
+    return args.at(-1)
+  },
+  async fail () { return Promise.reject() },
+}
+
 Bun.serve({
   port: 4173,
   fetch (req, server) {
@@ -8,19 +21,8 @@ Bun.serve({
       const nexus = new Nexus({
         prefix: 'server:',
         startCall (name, ...args) {
-          if (name === 'generate') {
-            return (async function* () {
-              for (const arg of args) {
-                yield arg
-              }
-              return args[0]
-            })()
-          }
-          if (name === 'basic') {
-            return Promise.resolve(args)
-          }
-          if (name === 'fail') {
-            return Promise.reject()
+          if (callHandlers[name]) {
+            return callHandlers[name](...args)
           }
           return Promise.reject(`No such CALL ${name}`)
         }
