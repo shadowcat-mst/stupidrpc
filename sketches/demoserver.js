@@ -22,6 +22,9 @@ const callHandlers = {
 }
 
 function startCall (call, ...args) {
+  if (!Object.hasOwn(callHandlers, call)) {
+    throw `Invalid call name: ${call}`;
+  }
   return callHandlers[call](...args)
 }
 
