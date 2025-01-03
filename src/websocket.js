@@ -1,14 +1,5 @@
 import { Nexus } from './nexus.js'
 
-function bindNexusToWebSocket (nexus, ws) {
-  nexus.sendMessage = (...msg) => ws.send(JSON.stringify(msg))
-  ws.addEventListener(
-    'message', ({ data }) => nexus.receiveMessage(...JSON.parse(data))
-  )
-  nexus.ws = ws
-  return nexus
-}
-
 function wsConnect (ws) {
   if (typeof ws === 'string') ws = new WebSocket(ws)
   if (ws.readyState === WebSocket.OPEN) return Promise.resolve(ws)
@@ -33,5 +24,13 @@ function wsConnect (ws) {
 }
 
 export async function nexusFromWebSocket (ws, nexusArgs) {
-  return bindNexusToWebSocket(new Nexus(nexusArgs), await wsConnect(ws))
+  ws = await wsConnect(ws)
+  const nexus = new Nexus({
+    sendMessage (...msg) { ws.send(JSON.stringify(msg)) },
+    ws
+  })
+  ws.addEventListener(
+    'message', ({ data }) => nexus.receiveMessage(...JSON.parse(data))
+  )
+  return nexus
 }
