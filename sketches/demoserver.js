@@ -29,7 +29,9 @@ Bun.serve({
   port: 4173,
   fetch (req, server) {
     let path = new URL(req.url).pathname
-    if (path == '/ws') return startNexus(req, server, { startCall })
+    if (path == '/ws') {
+      return startNexus(req, server, { startCall, debug: console })
+    }
   },
   websocket: websocketHandlers,
 });
