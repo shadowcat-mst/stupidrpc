@@ -227,8 +227,7 @@ export class Nexus {
   idSequence = 0
 
   nextid_ () {
-    this.idSequence++
-    let seqstr = this.idSequence.toString()
+    let seqstr = (++this.idSequence).toString()
     if (seqstr.length < 4) {
       const zeroes = new Array(4 - seqstr.length).keys().map(v => '0')
       seqstr = [ ...zeroes, seqstr ].join('')
