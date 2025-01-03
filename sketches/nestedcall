@@ -1,0 +1,14 @@
+    startCall(call, ...args) {
+      let targ = handlers
+      try {
+        if (Array.isArray(call)) {
+          const descend = [ ...call ]
+          call = descend.pop()
+          targ = descend.reduce((a, b) => a[b], targ)
+        }
+      } catch (e) {
+        throw `Handler lookup failure: ${e}`
+      }
+      return targ[call](...args)
+    },
+

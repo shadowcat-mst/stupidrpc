@@ -299,7 +299,7 @@ export class Nexus {
             : invalid()
       )
     } catch (error) {
-      this.sendMessage_(FAIL, callId, error)
+      this.sendMessage_(FAIL, callId, error.toString())
       return
     }
     const sendMessage = (type, value) => this.sendMessage_(type, callId, value)

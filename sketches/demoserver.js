@@ -21,11 +21,15 @@ const callHandlers = {
   ],
 }
 
+function startCall (call, ...args) {
+  return callHandlers[call](...args)
+}
+
 Bun.serve({
   port: 4173,
   fetch (req, server) {
     let path = new URL(req.url).pathname
-    if (path == '/ws') return startNexus(req, server, callHandlers)
+    if (path == '/ws') return startNexus(req, server, { startCall })
   },
   websocket: websocketHandlers,
 });
