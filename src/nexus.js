@@ -289,7 +289,7 @@ export class Nexus {
     let state, resultSenderType
     try {
       if (!this.startCall) throw "CALL unsupported by this endpoint"
-      state = this.startCall(...payload)
+      state = this.startCall(...payload) ?? invalid()
       resultSenderType = (
         state['then']
           ? SimpleResultSender
