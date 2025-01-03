@@ -1,19 +1,9 @@
 import { Nexus } from '../src/nexus.js'
 
 function loggedNexus (nexusArgs) {
-  const sendCallback = nexusArgs.sendCallback
-  delete nexusArgs.sendCallBack
   return new Nexus({
-    __proto__: Nexus.prototype,
+    debug: console,
     ...nexusArgs,
-    sendMessage (...msg) {
-      console.log(`${this.prefix}SEND`, JSON.stringify(msg))
-      sendCallback(msg)
-    },
-    receiveMessage (...msg) {
-      console.log(`${this.prefix}RECV`, JSON.stringify(msg))
-      super.receiveMessage(...msg)
-    }
   })
 }
 
@@ -21,7 +11,7 @@ let clientSend = () => {}
 
 const clientNexus = loggedNexus({
    prefix: 'client:',
-   sendCallback (msg) { clientSend(msg) },
+   sendMessage (...msg) { clientSend(msg) },
 })
 
 const p0 = clientNexus.call('foo', [])
@@ -77,7 +67,7 @@ let serverSend = ([ type, callId, value ]) => {
 const serverNexus = loggedNexus({
   prefix: 'server:',
   startCall (methodName) { return callHandlers[methodName]() },
-  sendCallback(msg) { serverSend(msg) },
+  sendMessage(...msg) { serverSend(msg) },
 })
 
 const p5 = new Promise(resolve => doneHandlers['inject:0001'] = resolve)

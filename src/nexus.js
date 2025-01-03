@@ -256,16 +256,22 @@ export class Nexus {
 
   sendCall_ (makeResultReceiver, call) {
     const callId = this.nextid_()
-    this.sendMessage(CALL, callId, ...call)
+    this.sendMessage_(CALL, callId, ...call)
     const { inflight } = this
     const receiverArgs = {
       onComplete () { delete inflight[callId] },
-      onStop () { this.sendMessage(STOP, callId) },
+      onStop () { this.sendMessage_(STOP, callId) },
     }
     return inflight[callId] = makeResultReceiver(receiverArgs)
   }
 
+  sendMessage_ (...msg) {
+    if (this.debug?.log) this.debug.log(this.prefix + 'SEND', arguments)
+    this.sendMessage(...msg)
+  }
+
   receiveMessage (type, callId, ...payload) {
+    if (this.debug?.log) this.debug.log(this.prefix + 'RECV', arguments)
     const { inflight } = this
     if (type === CALL) {
       this.receiveCall_(callId, payload)
@@ -293,12 +299,10 @@ export class Nexus {
             : invalid()
       )
     } catch (error) {
-      this.sendMessage(FAIL, callId, error)
+      this.sendMessage_(FAIL, callId, error)
       return
     }
-    const sendMessage = (type, value) => {
-      this.sendMessage(type, callId, value)
-    }
+    const sendMessage = (type, value) => this.sendMessage_(type, callId, value)
     const { inflight } = this
     const senderArgs = {
       state, sendMessage,
