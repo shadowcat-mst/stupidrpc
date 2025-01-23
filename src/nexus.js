@@ -227,11 +227,7 @@ export class Nexus {
   idSequence = 0
 
   nextid_ () {
-    let seqstr = (++this.idSequence).toString()
-    if (seqstr.length < 4) {
-      const zeroes = new Array(4 - seqstr.length).keys().map(v => '0')
-      seqstr = [ ...zeroes, seqstr ].join('')
-    }
+    let seqstr = (++this.idSequence).toString().padStart(4, '0')
     return (this.prefix ?? '') + seqstr
   }
 
