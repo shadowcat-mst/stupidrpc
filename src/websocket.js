@@ -27,7 +27,7 @@ export async function nexusFromWebSocket (ws, args) {
   ws = await wsConnect(ws)
   const nexus = new Nexus({
     sendMessage (...msg) { ws.send(JSON.stringify(msg)) },
-    ws,
+    connection: ws,
     ...args,
   })
   ws.addEventListener(
