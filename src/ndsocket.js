@@ -1,15 +1,15 @@
 import { Nexus } from './nexus.js'
 import * as ndjson from 'ndjson'
 
-function ndpair (socket) {
-  return [
-    socket.pipe(ndjson.parse()),
-    ...[ndjson.stringify()].map(w => (w.pipe(socket), w))
-  ]
+export function nexusFromNDSocket (socket, args) {
+  return nexusFromNDPair(socket, socket, args)
 }
 
-export function nexusFromNDSocket (socket, args) {
-  const [ reader, writer ] = ndpair(socket)
+export function nexusFromNDPair (readable, writable, args) {
+  const [ reader, writer ] = [
+    readable.pipe(ndjson.parse()),
+    ...[ndjson.stringify()].map(w => (w.pipe(writable), w))
+  ]
   const nexus = new Nexus({
     sendMessage (...msg) { writer.write(msg) },
     connection: socket,
