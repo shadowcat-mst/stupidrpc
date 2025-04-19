@@ -1,7 +1,6 @@
 import net from 'node:net'
 import * as ndjson from 'ndjson'
-// import { Transform } from 'node:stream'
-import through from 'through2'
+import { Transform } from 'node:stream'
 
 function ndpair (socket) {
   return [
@@ -29,12 +28,13 @@ const server = net.createServer((c) => {
 
   const counter = (() => {
     let count = 0
-    return through.obj(
-      (obj, _, cb) => {
+    return new Transform({
+      objectMode: true,
+      transform (obj, _, cb) {
         ++count
         cb(null, [ { count }, ...obj ])
       }
-    )
+    })
   })()
 
   reader.pipe(counter).pipe(writer)
