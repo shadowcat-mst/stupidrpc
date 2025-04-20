@@ -1,3 +1,9 @@
+/*
+
+
+
+*/
+
 export const ClassSymbol = {
   has: Symbol('ClassSymbol.has'),
 }
@@ -10,7 +16,8 @@ function installMethod (on, name, value) {
 
 const ucfirst = s => s.replace(/^([a-z])/, m => m.toUpperCase())
 
-const maybeDefault = args => args.length ? { default: args[0] } : {}
+const maybeDefault = ([ default_, opts ]) =>
+  ({ ...(default_ !== undefined && { default: default_ }), ...opts })
 
 export function ro (...args) {
   return maybeDefault(args)
@@ -21,7 +28,7 @@ export function rw (...args) {
 }
 
 export function rwp (...args) {
-  return { writer: true, ...maybeDefault(args) }
+  return { privateWriter: true, ...maybeDefault(args) }
 }
 
 export function lazy (builder) {
@@ -32,16 +39,18 @@ function validateHasPairs (className, hasPairs) {
   const problems = []
   const badDefaults = hasPairs.flatMap(
     ([ k, v ]) => (
-      (Object.has(v, 'default')
+      (Object.hasOwn(v, 'default')
         && typeof v.default === 'object'
         && v.default !== null)
       ? k : []
     )
   )
-  problems.push('default cannot be an object for: ' + badDefaults.join(', '))
+  if (badDefaults.length) {
+    problems.push('default cannot be an object for: ' + badDefaults.join(', '))
+  }
   const badBuilders = hasPairs.flatMap(
     ([ k, v ]) => (
-      (Object.has(v, 'builder')
+      (Object.hasOwn(v, 'builder')
         && !(
           typeof v.builder === 'string'
           || typeof v.builder === 'symbol'
@@ -49,21 +58,25 @@ function validateHasPairs (className, hasPairs) {
       ? k : []
     )
   )
-  problems.push(
-    'builder must be string/symbol/function for: ' + badBuilders.join(', ')
-  )
+  if (badBuilders.length) {
+    problems.push(
+      'builder must be string/symbol/function for: ' + badBuilders.join(', ')
+    )
+  }
   const badWriters = hasPairs.flatMap(
     ([ k, v ]) => (
-      (Object.has(v, 'writer')
+      (Object.hasOwn(v, 'writer')
         && !(
           typeof v.writer === 'string'
           || typeof v.writer === 'symbol'))
       ? k : []
     )
   )
-  problems.push(
-    'writer must be string/symbol for: ' + badWriters.join(', ')
-  )
+  if (badWriters.length) {
+    problems.push(
+      'writer must be string/symbol for: ' + badWriters.join(', ')
+    )
+  }
   if (problems.length) {
     throw [ `Errors creating ${className}:`, ...problems ].join("\n")
   }
@@ -80,7 +93,9 @@ export function Class (className, meta, methods) {
       classHas[name].writer = `set${ucfirst(name)}_`
     }
   }
-  const withProto = meta.with ?? []
+  const withProto = meta.with
+    ? (Array.isArray(meta.with) ? meta.with : [meta.with])
+    :  []
   const { BUILDARGS, BUILD } = meta
   const newClass = {
     [className]: class extends superClass {
@@ -100,15 +115,16 @@ export function Class (className, meta, methods) {
           }
         }
         super(...superArgs)
-        const missingRequired = required.filter(n => !Object.has(args, n))
+        args ??= {}
+        const missingRequired = required.filter(n => !Object.hasOwn(args, n))
         if (missingRequired.length) {
           throw "Missing required arguments: " + missingRequired.join(', ')
         }
         for (const [ k, v ] of hasPairs) {
           let value
-          if (Object.has(args, k)) {
+          if (Object.hasOwn(args, k)) {
             value = args[k]
-          } else if (Object.has(v, 'default')) {
+          } else if (Object.hasOwn(v, 'default')) {
             if (typeof v.default == 'function') {
               value = v.default.call(this)
             } else {
@@ -137,7 +153,11 @@ export function Class (className, meta, methods) {
   for (const entry of withProto) {
     const [ roleFunction, ...roleArgs ]
       = Array.isArray(entry) ? entry : [entry]
-    const [ roleMeta, roleMethods ] = roleFunction.call(newClass, roleArgs)
+    const roleInstantiation = roleFunction.call(newClass, roleArgs)
+    const [ roleMeta, roleMethods ]
+      = Array.isArray(roleInstantiation)
+          ? roleInstantiation
+          : [ {}, roleInstantiation ]
     if (roleMeta.with) throw 'NYI, soz'
     if (roleMeta.extends) {
       throw `${roleFunction,name} is a role and cannot extends`
@@ -148,7 +168,7 @@ export function Class (className, meta, methods) {
       if (typeof thisHas === 'function') {
         thisHas = thisHas()
       }
-      if (thisHas.writer === true) {
+      if (thisHas.privateWriter === true) {
         thisHas.writer = `set${ucfirst(name)}_`
       }
       classHas[name] = thisHas
@@ -163,7 +183,7 @@ export function Class (className, meta, methods) {
   validateHasPairs(className, hasPairs)
   const required = hasPairs.flatMap(
     ([ k, v ]) => (
-      ((Object.has(v, 'default') && typeof v.default !== 'undefined')
+      ((Object.hasOwn(v, 'default') && typeof v.default !== 'undefined')
         || v.builder)
       ? [] : k
     )
@@ -183,6 +203,12 @@ export function Class (className, meta, methods) {
         Object.defineProperty(this, k, { value, configurable: true })
         return value
       },
+      ...(v.writable && {
+        set (value) {
+          Object.defineProperty(this, k, { value, configurable: true })
+          return value
+        }
+      }),
       configurable: true,
     })
   }
