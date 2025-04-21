@@ -19,13 +19,15 @@ for the moment)
 */
 
 import { nexusFromNDSocket, nexusFromNDPair } from '../src/ndsocket.js'
+import { pluginSymbols } from './outpost-plugin.js'
 import os from 'node:os'
 
 class AttachCommand {
 
   callHandlers = {
     __proto__: null,
-    log (v) { console.error(v); return Promise.resolve(true) }
+    log (v) { console.error(v); return Promise.resolve(true) },
+    echo (v) { return Promise.resolve(v) },
   }
 
   constructor (args) {
@@ -33,14 +35,21 @@ class AttachCommand {
     this.startCall = this.startCall.bind(this)
   }
 
-  run () {
-    const { socketPath, prefix, startCall } = this
-    const { stdin, stdout } = process
+  async run () {
+    const { socketPath, prefix, startCall, args } = this
+    const plugins = []
+    for (const filename of args) {
+      plugins.push((await import(filename)).plugin)
+    }
     if (socketPath === '-') {
+      const { stdin, stdout } = process
       const nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
+      for (const plugin of plugins) {
+        plugin[pluginSymbols.onConnected](this, nexus)
+      }
       const { promise, resolve } = Promise.withResolvers()
       nexus.connection.on('close', resolve)
-      return promise
+      return await promise
     }
     throw 'NYI'
   }
@@ -73,20 +82,13 @@ function main () {
     throw `No such subcommand ${commandName}, try one of: ${validCommands}`
   }
 
-  const identity = {
-    programName, commandName, socketPath, args,
-    username: os.userInfo().username,
-    hostname: os.hostname(),
-    pid: process.pid,
-  }
-
   const prefix = [ 
     [ os.userInfo().username, os.hostname() ].join('@'),
     process.pid, programName, commandName, '',
   ].join(':')
 
   const command = new subCommands[commandName]({
-    socketPath, args
+    programName, commandName, socketPath, args, prefix
   })
 
   return command.run()
