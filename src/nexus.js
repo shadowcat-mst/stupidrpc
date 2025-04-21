@@ -222,9 +222,9 @@ class StreamResultSender {
 
 export class Nexus {
 
-  inflightHere = new Map()
+  inflightMine = new Map()
 
-  inflightThere = new Map()
+  inflightTheirs = new Map()
 
   idSequence = 0
 
@@ -254,13 +254,13 @@ export class Nexus {
   sendCall_ (makeResultReceiver, call) {
     const callId = this.nextid_()
     this.sendMessage_(CALL, callId, ...call)
-    const { inflightHere } = this
+    const { inflightMine } = this
     const receiverArgs = {
-      onComplete () { inflightHere.delete(callId) },
+      onComplete () { inflightMine.delete(callId) },
       onStop () { this.sendMessage_(STOP, callId) },
     }
     const receiver = makeResultReceiver(receiverArgs)
-    inflightHere.set(callId, receiver)
+    inflightMine.set(callId, receiver)
     return receiver
   }
 
@@ -274,10 +274,10 @@ export class Nexus {
     if (type === CALL) {
       this.receiveCall_(callId, payload)
     } else {
-      const inflightEntry = this.inflightHere.get(callId)
+      const inflightEntry = this.inflightMine.get(callId)
       if (!inflightEntry) return
       if (!inflightEntry[type]) {
-        throw `No handler for ${type} for ${callid}`
+        throw `No handler for ${type} for ${callId}`
       }
       inflightEntry[type](...payload)
     }
@@ -301,13 +301,13 @@ export class Nexus {
       return
     }
     const sendMessage = (type, value) => this.sendMessage_(type, callId, value)
-    const { inflightThere } = this
+    const { inflightTheirs } = this
     const senderArgs = {
       state, sendMessage,
-      onComplete () { inflightThere.delete(callId) },
+      onComplete () { inflightTheirs.delete(callId) },
     }
     const sender = new resultSenderType(senderArgs)
-    inflightThere.set(callId, sender)
+    inflightTheirs.set(callId, sender)
     return sender
   }
 }
