@@ -17,8 +17,6 @@ export const plugin = {
       ...staticIdentity,
     }
 
-    // currently ignoring the result because it either works or it doesn't
-    // and the outpost should be able to continue to work in either case
-    nexus.call('setConnectionIdentity', identity)
+    nexus.call('setConnectionIdentity', identity).catch(e => console.error(e))
   }
 }
