@@ -29,20 +29,26 @@ class CommandBase {
     Object.assign(this, args)
   }
 
+  nexusArgs () {
+    const { prefix, callHandlers } = this
+    return { prefix, callHandlers: { ...callHandlers } }
+  }
+
   async makeNexus (socket) {
-    const { socketPath, prefix, startCall } = this
+    const { socketPath, prefix, callHandlers } = this
+    const nexusArgs = this.nexusArgs()
     let nexus
     if (socket) {
-      nexus = nexusFromNDSocket(socket, { prefix, startCall })
+      nexus = nexusFromNDSocket(socket, nexusArgs)
     } else if (socketPath === '-') {
       const { stdin, stdout } = process
-      nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
+      nexus = nexusFromNDPair(stdin, stdout, nexusArgs)
     } else {
       const { promise, resolve, reject } = Promise.withResolvers()
       socket = net.createConnection(socketPath, resolve)
       socket.on('error', reject)
       await promise
-      nexus = nexusFromNDSocket(socket, { prefix, startCall })
+      nexus = nexusFromNDSocket(socket, nexusArgs)
     }
     return nexus
   }
@@ -54,17 +60,6 @@ class CommandWithHandlers extends CommandBase {
     __proto__: null,
     log (v) { console.error(v); return Promise.resolve(true) },
     echo (v) { return Promise.resolve(v) },
-  }
-
-  constructor (args) {
-    super(args)
-    this.startCall = this.startCall.bind(this)
-  }
-
-  startCall (callName, ...callArgs) {
-    const handler = this.callHandlers[callName]
-    if (!handler) return Promise.reject(`No handler for ${callName}`)
-    return handler(...callArgs)
   }
 
   async makeNexus (...args) {

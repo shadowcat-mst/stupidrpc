@@ -228,6 +228,8 @@ export class Nexus {
 
   idSequence = 0
 
+  callHandlers = {}
+
   nextid_ () {
     let seqstr = (++this.idSequence).toString().padStart(4, '0')
     return (this.prefix ?? '') + seqstr
@@ -309,5 +311,16 @@ export class Nexus {
     const sender = new resultSenderType(senderArgs)
     inflightTheirs.set(callId, sender)
     return sender
+  }
+
+  startCall(name, ...args) {
+    const { callHandlers } = this
+    if (!Object.keys(callHandlers).length) {
+      throw "CALL unsupported by this endpoint"
+    }
+    if (!callHandlers[name]) {
+      throw `CALL ${name} unsupported by this endpoint`
+    }
+    return callHandlers[name](...args)
   }
 }
