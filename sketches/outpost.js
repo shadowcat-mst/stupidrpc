@@ -22,7 +22,14 @@ import { nexusFromNDSocket, nexusFromNDPair } from '../src/ndsocket.js'
 import { pluginSymbols } from './outpost-plugin.js'
 import os from 'node:os'
 
-class AttachCommand {
+class CommandBase {
+
+  constructor (args) {
+    Object.assign(this, args)
+  }
+}
+
+class CommandWithHandlers extends CommandBase {
 
   callHandlers = {
     __proto__: null,
@@ -31,9 +38,18 @@ class AttachCommand {
   }
 
   constructor (args) {
-    Object.assign(this, args)
+    super(args)
     this.startCall = this.startCall.bind(this)
   }
+
+  startCall (callName, ...callArgs) {
+    const handler = this.callHandlers[callName]
+    if (!handler) return Promise.reject(`No handler for ${callName}`)
+    return handler(...callArgs)
+  }
+}
+
+class AttachCommand extends CommandWithHandlers {
 
   async run () {
     const { socketPath, prefix, startCall, args } = this
@@ -57,12 +73,6 @@ class AttachCommand {
     return await new Promise(
       resolve => nexus.connection.on('close', resolve)
     )
-  }
-
-  startCall (callName, ...callArgs) {
-    const handler = this.callHandlers[callName]
-    if (!handler) return Promise.reject(`No handler for ${callName}`)
-    return handler(...callArgs)
   }
 }
 
@@ -103,6 +113,8 @@ if (import.meta.main) {
   try {
     await main()
   } catch (e) {
-    process.stderr.write(e.toString() + "\n")
+    // .toString() shows only the error message without the backtrace
+    // process.stderr.write(e.toString() + "\n")
+    console.error(e)
   }
 }
