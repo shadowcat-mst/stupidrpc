@@ -1,3 +1,4 @@
 export const pluginSymbols = {
-  onConnected: Symbol('outpostPlugin.onConnected')
+  onLoaded: Symbol('outpostPlugin.onLoaded'),
+  onConnected: Symbol('outpostPlugin.onConnected'),
 }

@@ -38,20 +38,25 @@ class AttachCommand {
   async run () {
     const { socketPath, prefix, startCall, args } = this
     const plugins = []
+    const { onLoaded, onConnected } = pluginSymbols
     for (const filename of args) {
-      plugins.push((await import(filename)).plugin)
+      const { plugin } = await import(filename)
+      if (plugin[onLoaded]) plugin[onLoaded](this)
+      plugins.push(plugin)
     }
+    let nexus
     if (socketPath === '-') {
       const { stdin, stdout } = process
-      const nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
-      for (const plugin of plugins) {
-        plugin[pluginSymbols.onConnected](this, nexus)
-      }
-      const { promise, resolve } = Promise.withResolvers()
-      nexus.connection.on('close', resolve)
-      return await promise
+      nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
+    } else {
+      throw 'NYI'
     }
-    throw 'NYI'
+    for (const plugin of plugins) {
+      if (plugin[onConnected]) plugin[onConnected](this, nexus)
+    }
+    return await new Promise(
+      resolve => nexus.connection.on('close', resolve)
+    )
   }
 
   startCall (callName, ...callArgs) {
