@@ -38,7 +38,11 @@ class CommandBase {
       const { stdin, stdout } = process
       nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
     } else {
-      throw 'NYI'
+      const { promise, resolve, reject } = Promise.withResolvers()
+      socket = net.createConnection(socketPath, resolve)
+      socket.on('error', reject)
+      await promise
+      nexus = nexusFromNDSocket(socket, { prefix, startCall })
     }
     return nexus
   }
@@ -140,7 +144,7 @@ class CallCommand extends CommandBase {
     )
     const result = await nexus.call(...payload)
     console.error(result)
-    nexus.connection.close()
+    nexus.connection.destroy()
     return true
   }
 }
