@@ -22,6 +22,7 @@ import { nexusFromNDSocket, nexusFromNDPair } from '../src/ndsocket.js'
 import { pluginSymbols } from './outpost-plugin.js'
 import os from 'node:os'
 import net from 'node:net'
+import { spawn } from 'node:child_process'
 
 class CommandBase {
 
@@ -43,6 +44,20 @@ class CommandBase {
     } else if (socketPath === '-') {
       const { stdin, stdout } = process
       nexus = nexusFromNDPair(stdin, stdout, nexusArgs)
+    } else if (socketPath.match(/:/)) {
+      const [ _, remote, remotePath ] = socketPath.match(/^(.*?):(.*)$/)
+      const spawned = spawn('ssh',
+        [ remote, 'socat', '-', `UNIX:${remotePath}` ],
+        { stdio: [ 'pipe', 'pipe', 'inherit' ] },
+      )
+      const { promise, resolve, reject } = Promise.withResolvers()
+      spawned.on('error', reject)
+      spawned.on('spawn', resolve)
+      await promise
+      const { stdin, stdout } = spawned
+      nexus = nexusFromNDPair(stdout, stdin, {
+        connection: stdin, ...nexusArgs
+      })
     } else {
       const { promise, resolve, reject } = Promise.withResolvers()
       socket = net.createConnection(socketPath, resolve)
