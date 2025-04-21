@@ -106,6 +106,7 @@ class CallCommand extends CommandBase {
     )
     const result = await nexus.call(...payload)
     console.error(result)
+    nexus.connection.close()
     return true
   }
 }
