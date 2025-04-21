@@ -21,6 +21,7 @@ for the moment)
 import { nexusFromNDSocket, nexusFromNDPair } from '../src/ndsocket.js'
 import { pluginSymbols } from './outpost-plugin.js'
 import os from 'node:os'
+import net from 'node:net'
 
 class CommandBase {
 
@@ -28,10 +29,12 @@ class CommandBase {
     Object.assign(this, args)
   }
 
-  async makeNexus () {
+  async makeNexus (socket) {
     const { socketPath, prefix, startCall } = this
     let nexus
-    if (socketPath === '-') {
+    if (socket) {
+      nexus = nexusFromNDSocket(socket, { prefix, startCall })
+    } else if (socketPath === '-') {
       const { stdin, stdout } = process
       nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
     } else {
@@ -60,8 +63,8 @@ class CommandWithHandlers extends CommandBase {
     return handler(...callArgs)
   }
 
-  async makeNexus () {
-    const nexus = await super.makeNexus()
+  async makeNexus (...args) {
+    const nexus = await super.makeNexus(...args)
     await this.notifyPlugins(nexus)
     return nexus
   }
@@ -97,6 +100,37 @@ class AttachCommand extends CommandWithHandlers {
   }
 }
 
+class ListenCommand extends CommandWithHandlers {
+
+  // have to audit this for memory leaks later
+  // also some sort of sane shutdown when the client goes away
+  // but to begin with, let's settle for it working at all
+
+  async run () {
+    await this.loadPlugins()
+
+    const server = net.createServer(c => this.setupConnection(c))
+
+    await this.listen(server)
+
+    return new Promise(() => {}) // dummy forever promise, fix later
+  }
+
+  listen (server) {
+    const { promise, resolve, reject } = Promise.withResolvers()
+
+    server.on('error', reject)
+
+    server.listen(this.socketPath, resolve)
+
+    return promise
+  }
+
+  async setupConnection (client) {
+    const nexus = await this.makeNexus(client)
+  }
+}
+
 class CallCommand extends CommandBase {
 
   async run () {
@@ -123,6 +157,7 @@ class Outpost {
       __proto__: null, // no, you're not getting to call toString() or similar
       attach: AttachCommand,
       call: CallCommand,
+      listen: ListenCommand,
     }
 
     const [ rawProgramName, commandName, socketPath, ...args ]
