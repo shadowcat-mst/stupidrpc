@@ -111,43 +111,51 @@ class CallCommand extends CommandBase {
   }
 }
 
-function main () {
+class Outpost {
 
-  const subCommands = {
-    __proto__: null, // no, you're not getting to call toString() or similar
-    attach: AttachCommand,
-    call: CallCommand,
+  constructor (args) {
+    Object.assign(this, args)
   }
 
-  const [ rawProgramName, commandName, socketPath, ...args ]
-    = process.argv.slice(1)
+  run () {
 
-  const programName = rawProgramName.replace(/^.*\//,'').replace(/\..*$/,'')
+    const subCommands = {
+      __proto__: null, // no, you're not getting to call toString() or similar
+      attach: AttachCommand,
+      call: CallCommand,
+    }
 
-  if (!commandName || !socketPath) {
-    throw `Usage: ${programName} commandName socketPath ...args`
+    const [ rawProgramName, commandName, socketPath, ...args ]
+      = this.argv.slice(1)
+
+    const programName = rawProgramName.replace(/^.*\//,'').replace(/\..*$/,'')
+
+    if (!commandName || !socketPath) {
+      throw `Usage: ${programName} commandName socketPath ...args`
+    }
+
+    if (!subCommands[commandName]) {
+      const validCommands = Object.keys(subCommands).toSorted().join(', ')
+      throw `No such subcommand ${commandName}, try one of: ${validCommands}`
+    }
+
+    const prefix = [ 
+      [ os.userInfo().username, os.hostname() ].join('@'),
+      process.pid, programName, commandName, '',
+    ].join(':')
+
+    const command = new subCommands[commandName]({
+      programName, commandName, socketPath, args, prefix
+    })
+
+    return command.run()
   }
-
-  if (!subCommands[commandName]) {
-    const validCommands = Object.keys(subCommands).toSorted().join(', ')
-    throw `No such subcommand ${commandName}, try one of: ${validCommands}`
-  }
-
-  const prefix = [ 
-    [ os.userInfo().username, os.hostname() ].join('@'),
-    process.pid, programName, commandName, '',
-  ].join(':')
-
-  const command = new subCommands[commandName]({
-    programName, commandName, socketPath, args, prefix
-  })
-
-  return command.run()
 }
 
 if (import.meta.main) {
   try {
-    await main()
+    const { argv } = process
+    await new Outpost({ argv }).run()
   } catch (e) {
     // .toString() shows only the error message without the backtrace
     // process.stderr.write(e.toString() + "\n")
