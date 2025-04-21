@@ -12,7 +12,7 @@ export function nexusFromNDPair (readable, writable, args) {
   ]
   const nexus = new Nexus({
     sendMessage (...msg) { writer.write(msg) },
-    connection: socket,
+    connection: readable,
     ...args,
   })
   reader.on('data', msg => nexus.receiveMessage(...msg))
