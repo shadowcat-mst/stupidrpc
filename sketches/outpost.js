@@ -27,6 +27,18 @@ class CommandBase {
   constructor (args) {
     Object.assign(this, args)
   }
+
+  async makeNexus () {
+    const { socketPath, prefix, startCall } = this
+    let nexus
+    if (socketPath === '-') {
+      const { stdin, stdout } = process
+      nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
+    } else {
+      throw 'NYI'
+    }
+    return nexus
+  }
 }
 
 class CommandWithHandlers extends CommandBase {
@@ -47,32 +59,54 @@ class CommandWithHandlers extends CommandBase {
     if (!handler) return Promise.reject(`No handler for ${callName}`)
     return handler(...callArgs)
   }
+
+  async makeNexus () {
+    const nexus = await super.makeNexus()
+    await this.notifyPlugins(nexus)
+    return nexus
+  }
+
+  async loadPlugins () {
+    if (this.plugins) return
+    const { onLoaded } = pluginSymbols
+    const plugins = []
+    for (const filename of this.args) {
+      const { plugin } = await import(filename)
+      if (plugin[onLoaded]) plugin[onLoaded](this)
+      plugins.push(plugin)
+    }
+    this.plugins = plugins
+  }
+
+  async notifyPlugins (nexus) {
+    const { onConnected } = pluginSymbols
+    for (const plugin of this.plugins) {
+      if (plugin[onConnected]) await plugin[onConnected](this, nexus)
+    }
+  }
 }
 
 class AttachCommand extends CommandWithHandlers {
 
   async run () {
-    const { socketPath, prefix, startCall, args } = this
-    const plugins = []
-    const { onLoaded, onConnected } = pluginSymbols
-    for (const filename of args) {
-      const { plugin } = await import(filename)
-      if (plugin[onLoaded]) plugin[onLoaded](this)
-      plugins.push(plugin)
-    }
-    let nexus
-    if (socketPath === '-') {
-      const { stdin, stdout } = process
-      nexus = nexusFromNDPair(stdin, stdout, { prefix, startCall })
-    } else {
-      throw 'NYI'
-    }
-    for (const plugin of plugins) {
-      if (plugin[onConnected]) plugin[onConnected](this, nexus)
-    }
+    await this.loadPlugins()
+    const nexus = await this.makeNexus()
     return await new Promise(
       resolve => nexus.connection.on('close', resolve)
     )
+  }
+}
+
+class CallCommand extends CommandBase {
+
+  async run () {
+    const nexus = await this.makeNexus()
+    const payload = this.args.map(v =>
+      v.match(/^["{\[0-9]/) ? JSON.parse(v) : v
+    )
+    const result = await nexus.call(...payload)
+    console.error(result)
+    return true
   }
 }
 
@@ -81,6 +115,7 @@ function main () {
   const subCommands = {
     __proto__: null, // no, you're not getting to call toString() or similar
     attach: AttachCommand,
+    call: CallCommand,
   }
 
   const [ rawProgramName, commandName, socketPath, ...args ]
