@@ -274,7 +274,7 @@ export class Nexus {
     if (type === CALL) {
       this.receiveCall_(callId, payload)
     } else {
-      const inflightEntry = this.inflightThere.get(callId)
+      const inflightEntry = this.inflightHere.get(callId)
       if (!inflightEntry) return
       if (!inflightEntry[type]) {
         throw `No handler for ${type} for ${callid}`
