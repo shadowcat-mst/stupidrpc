@@ -315,7 +315,7 @@ export class Nexus {
 
   startCall(name, ...args) {
     const { callHandlers } = this
-    if (!Object.keys(callHandlers).length) {
+    if (!callHandlers || !Object.keys(callHandlers).length) {
       throw "CALL unsupported by this endpoint"
     }
     if (!callHandlers[name]) {
