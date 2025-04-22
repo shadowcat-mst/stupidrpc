@@ -81,7 +81,7 @@ class CommandWithHandlers extends CommandBase {
 
   async makeNexus (...args) {
     const nexus = await super.makeNexus(...args)
-    await this.notifyPlugins(nexus)
+    await this.notifyPlugins('onConnected', nexus)
     return nexus
   }
 
@@ -91,17 +91,15 @@ class CommandWithHandlers extends CommandBase {
     const plugins = []
     for (const filename of this.args) {
       const { plugin } = await import(filename)
-      if (plugin[onLoaded]) plugin[onLoaded](this)
       plugins.push(plugin)
     }
     this.plugins = plugins
+    await this.notifyPlugins('onLoaded')
   }
 
-  async notifyPlugins (nexus) {
-    const { onConnected } = pluginSymbols
-    for (const plugin of this.plugins) {
-      if (plugin[onConnected]) await plugin[onConnected](this, nexus)
-    }
+  async notifyPlugins (notificationType, ...args) {
+    const notifyMethod = pluginSymbols[notificationType]
+    this.plugins.forEach(plugin => plugin[notifyMethod]?.(this, ...args))
   }
 }
 
