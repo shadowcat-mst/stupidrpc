@@ -85,6 +85,14 @@ class CommandWithHandlers extends CommandBase {
     return nexus
   }
 
+  async waitForClose (nexus) {
+    const { promise, resolve } = Promise.withResolvers()
+    const notify = () => this.notifyPlugins('onDisconnected', nexus)
+    await new Promise (resolve => {
+      nexus.connection.on('close', () => notify().then(resolve))
+    })
+  }
+
   async loadPlugins () {
     if (this.plugins) return
     const { onLoaded } = pluginSymbols
@@ -108,9 +116,7 @@ class AttachCommand extends CommandWithHandlers {
   async run () {
     await this.loadPlugins()
     const nexus = await this.makeNexus()
-    return await new Promise(
-      resolve => nexus.connection.on('close', resolve)
-    )
+    return await this.waitForClose(nexus)
   }
 }
 
@@ -142,6 +148,7 @@ class ListenCommand extends CommandWithHandlers {
 
   async setupConnection (client) {
     const nexus = await this.makeNexus(client)
+    return await this.waitForClose(nexus)
   }
 }
 
