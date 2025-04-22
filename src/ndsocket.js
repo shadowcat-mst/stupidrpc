@@ -2,7 +2,9 @@ import { Nexus } from './nexus.js'
 import * as ndjson from 'ndjson'
 
 export function nexusFromNDSocket (socket, args) {
-  return nexusFromNDPair(socket, socket, args)
+  return nexusFromNDPair(socket, socket, {
+    connection: socket, ...args
+  })
 }
 
 export function nexusFromNDPair (readable, writable, args) {
@@ -12,7 +14,6 @@ export function nexusFromNDPair (readable, writable, args) {
   ]
   const nexus = new Nexus({
     sendMessage (...msg) { writer.write(msg) },
-    connection: readable,
     ...args,
   })
   reader.on('data', msg => nexus.receiveMessage(...msg))

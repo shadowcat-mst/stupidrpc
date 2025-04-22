@@ -43,7 +43,9 @@ class CommandBase {
       nexus = nexusFromNDSocket(socket, nexusArgs)
     } else if (socketPath === '-') {
       const { stdin, stdout } = process
-      nexus = nexusFromNDPair(stdin, stdout, nexusArgs)
+      nexus = nexusFromNDPair(stdin, stdout, {
+        connection: stdin, ...nexusArgs,
+      })
     } else if (socketPath.match(/:/)) {
       const [ _, remote, remotePath ] = socketPath.match(/^(.*?):(.*)$/)
       const spawned = spawn('ssh',
