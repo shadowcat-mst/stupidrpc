@@ -289,7 +289,6 @@ export class Nexus {
     function invalid () { throw "startCall returned invalid type" }
     let state, resultSenderType
     try {
-      if (!this.startCall) throw "CALL unsupported by this endpoint"
       state = this.startCall(...payload) ?? invalid()
       resultSenderType = (
         state['then']
@@ -315,10 +314,7 @@ export class Nexus {
 
   startCall(name, ...args) {
     const { callHandlers } = this
-    if (!callHandlers || !Object.keys(callHandlers).length) {
-      throw "CALL unsupported by this endpoint"
-    }
-    if (!callHandlers[name]) {
+    if (!callHandlers?.[name]) {
       throw `CALL ${name} unsupported by this endpoint`
     }
     return callHandlers[name](...args)
