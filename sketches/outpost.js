@@ -122,6 +122,12 @@ class AttachCommand extends CommandWithHandlers {
 
 class ListenCommand extends CommandWithHandlers {
 
+  callHandlers = {
+    __proto__: null,
+    ...this.callHandlers,
+    shutdown: () => this.shutdown()
+  }
+
   // have to audit this for memory leaks later
   // also some sort of sane shutdown when the client goes away
   // but to begin with, let's settle for it working at all
@@ -133,7 +139,9 @@ class ListenCommand extends CommandWithHandlers {
 
     await this.listen(server)
 
-    return new Promise(() => {}) // dummy forever promise, fix later
+    return new Promise(
+      resolve => this.endRun = () => { server.close(); resolve() }
+    )
   }
 
   listen (server) {
@@ -144,6 +152,19 @@ class ListenCommand extends CommandWithHandlers {
     server.listen(this.socketPath, resolve)
 
     return promise
+  }
+
+  async shutdown () {
+    // Docs for close() say: "Stops the server from accepting new connections
+    //   and keeps existing connections"
+    // ... actual behaviour appears to be to kill the existing connections
+    // as well, at least under bun. My solution to this for the moment is
+    // to rename this method from shutdownListener() to shutdown() because
+    // that's a useful feature anyway; some form of graceful shutdown would
+    // be nice but is far from essential right now.
+    // (and the DONE true return does seem to happen before everything dies)
+    this.endRun()
+    return true
   }
 
   async setupConnection (client) {
